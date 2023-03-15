@@ -1,0 +1,12 @@
+version: '3'
+services:
+  python3:
+    restart: always
+    build: .
+    env_file:
+      - ./opt/.env
+    container_name: "gpt-interactive-learn${NAME_SUFFIX}"
+    working_dir: '/root/'
+    tty: true
+    volumes:
+      - ./opt:/root/opt

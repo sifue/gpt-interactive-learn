@@ -1,0 +1,13 @@
+## Python template
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 環境設定ファイル
+opt/.env
+
+# 出力ファイル
+opt/title_and_textpath.csv
+opt/text.json
+opt/index.pickle
