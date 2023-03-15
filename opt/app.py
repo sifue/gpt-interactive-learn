@@ -203,7 +203,8 @@ def message_finish(client, message, say, context, logger):
             # 会話のヒストリーを削除
             history_idetifier = get_history_identifier(
                 message["team"], message["channel"], message["user"])
-            del history_dict[history_idetifier]
+            if history_idetifier in history_dict.keys():
+                del history_dict[history_idetifier]
 
             logger.info(f"<@{message['user']}> さんの対話学習を終了しました。")
             say_ts(client, message, f"<@{message['user']}> さんの対話学習を終了しました。")
