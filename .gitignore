@@ -11,3 +11,5 @@ opt/.env
 opt/title_and_textpath.csv
 opt/text.json
 opt/index.pickle
+
+ .DS_Store

@@ -211,7 +211,7 @@ def message_finish(client, message, say, context, logger):
 @app.message(re.compile(r"^!il-help$"))
 def message_help(client, message, say, context, logger):
     say_ts(client, message, f"`!il-s` 対話学習をスタートします。\n" +
-           "`!il [回答内容]` 問われた問題に対して回答します。\n" +
+           "`!il [回答内容]` 問われた質問に対して回答します。\n" +
            "`!il-f` 対話学習を終了します。\n")
 
 @app.event("message")
