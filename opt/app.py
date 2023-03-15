@@ -200,6 +200,11 @@ def message_finish(client, message, say, context, logger):
     try:
         if message["user"] in using_user_set:
             using_user_set.remove(message["user"])  # ユーザーを解放
+            # 会話のヒストリーを削除
+            history_idetifier = get_history_identifier(
+                message["team"], message["channel"], message["user"])
+            del history_dict[history_idetifier]
+
             logger.info(f"<@{message['user']}> さんの対話学習を終了しました。")
             say_ts(client, message, f"<@{message['user']}> さんの対話学習を終了しました。")
         else:
