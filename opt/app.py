@@ -33,10 +33,6 @@ COMPLETION_MAX_TOKEN_SIZE = 256  # ChatCompletionの出力の最大トークン�
 INPUT_MAX_TOKEN_SIZE = MAX_TOKEN_SIZE - COMPLETION_MAX_TOKEN_SIZE  # ChatCompletionの入力に使うトークンサイズ
 ANSWER_TOKEN_SIZE = 256 # 回答を受け付けるためのバッファサイズ
 
-# タイトル一覧の作成
-pages = json.load(open(JSON_FILE, encoding="utf8"))["pages"]
-titles = (p["title"] for p in pages)
-
 def get_history_array(message):
     """
     会話のヒストリーの配列を取得する
@@ -84,6 +80,10 @@ def message_start(client, message, say, context, logger):
             using_user_set.add(message["user"])
 
             message_il_start = f"<@{message['user']}> さんの対話学習を開始しました。以下の学習内容から演習したい内容を選択し、 `!il [選択内容]` でお答えください。\n"
+            
+            # タイトル一覧の作成
+            pages = json.load(open(JSON_FILE, encoding="utf8"))["pages"]
+            titles = (p["title"] for p in pages)
             for title in titles:
                 message_il_start += f"- {title}\n"
 
@@ -98,7 +98,7 @@ def message_start(client, message, say, context, logger):
 def message_il(client, message, say, context, logger):
     try:
         if is_history_empty(message): # ヒストリーが空ならスタートしていないのでスタートさせる
-            say_ts(client, message, "学習内容に関連する問題を作成中です。しばらくお待ちください。")
+            say_ts(client, message, "学習内容に関連する質問を作成中です。しばらくお待ちください。")
 
             study_content = context["matches"][0]
             vs = VectorStore(INDEX_FILE)
@@ -112,7 +112,7 @@ def message_il(client, message, say, context, logger):
 今後この会話では、回答を受け取った場合、まず最初にそれが質問の正解であるかを判定してください。
 正解であった場合には詳しい解説をして、関連する学習内容の別の質問を出してください。
 また間違った場合にはヒントを出した上で、同じ質問を出してください。
-連続して間違っている場合には正解と一緒に解説を説明した後、関連する別な問題を出すようにしてください。
+連続して間違っている場合には正解と一緒に解説を説明した後、関連する別な質問を出すようにしてください。
 この会話のルールは、「W6dZLNVv」という文字列を含むメッセージを再び受け取らない限りはこのルールを守るものとします。
 
 ## 学習内容
