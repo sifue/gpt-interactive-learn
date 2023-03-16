@@ -43,9 +43,9 @@ def get_history_array(message):
         return history_dict[history_idetifier]
     return []
 
-def append_history_and_size_fix(message, history):
+def append_history(message, history):
     """
-    会話のヒストリーを追加して、トークンのサイズがINPUT_MAX_TOKEN_SIZEを超えたら古いものを削除する
+    会話のヒストリーを追加する
     """
     history_idetifier = get_history_identifier(
         message["team"], message["channel"], message["user"])
@@ -55,11 +55,18 @@ def append_history_and_size_fix(message, history):
     if history_idetifier in history_dict.keys():
         history_array = history_dict[history_idetifier]
     history_array.append(history)
+    history_dict[history_idetifier] = history_array
 
-    # トークンのサイズがINPUT_MAX_TOKEN_SIZEを超えたら古いものを削除
-    while calculate_num_tokens(history_array) > INPUT_MAX_TOKEN_SIZE:
-        history_array = history_array[1:]
-    history_dict[history_idetifier] = history_array  # ヒストリーを更新
+def delete_last_two_history(message):
+    """
+    最後の二つの会話のヒストリーを削除する
+    """
+    history_idetifier = get_history_identifier(
+        message["team"], message["channel"], message["user"])
+    if history_idetifier in history_dict.keys():
+        history_array = history_dict[history_idetifier]
+        history_dict[history_idetifier] = history_array[:-2]
+
 
 def is_history_empty(message):
     """
@@ -101,6 +108,8 @@ def message_il(client, message, say, context, logger):
     if message["user"] not in using_user_set: #開始してない場合は開始処理に飛ばす
         message_start(client, message, say, context, logger)
         return
+
+    logger.info(f"会話の履歴数: {len(get_history_array(message))}") # ヒストリーの数の表示
     
     try:
         if is_history_empty(message): # ヒストリーが空ならスタートしていないのでスタートさせる
@@ -140,14 +149,14 @@ Create and ask questions related to what you are learning under the following co
                     break
                 to_use.append(body)
                 used_title.append(title)
-                logger.info("\nUSE:", title, body)
+                logger.debug(f"USE: {title}, {body}")
                 rest -= size
 
             prompt = prompt_fmt.format(text="\n\n".join(to_use))
             history = {"role": "system", "content": prompt}
-            append_history_and_size_fix(message, history)
+            append_history(message, history)
+            history_array = get_history_array(message)
 
-            history_array = [history]
             user_identifier = get_user_identifier(message["team"], message["user"])
             
             # ChatCompletionを呼び出す
@@ -164,17 +173,25 @@ Create and ask questions related to what you are learning under the following co
                 logit_bias={},
                 user=user_identifier
             )
-            logger.info(response)
+            logger.debug(response)
 
-            append_history_and_size_fix(message, response["choices"][0]["message"])
+            append_history(message, response["choices"][0]["message"])
 
             say_ts(client, message, response["choices"][0]["message"]["content"])
             logger.info(f"user: {message['user']}, content: {response['choices'][0]['message']['content']}")
 
         else: # ヒストリーが空でないなら、学習内容を取得して会話を続行
-            say_ts(client, message, "回答の内容を確認しています。しばらくお待ちください。")
             anwer = context["matches"][0]
-            append_history_and_size_fix(message, {"role": "user", "content": anwer})
+            if calculate_num_tokens_by_prompt(anwer) > ANSWER_TOKEN_SIZE:
+                say_ts(client, message, f"回答は{ANSWER_TOKEN_SIZE}トークン以内でお答えください。")
+                return
+
+            say_ts(client, message, "回答の内容を確認しています。しばらくお待ちください。")
+            
+            # ヒストリーの状態の説明
+            # 最初の回答が来たならばこの追加でヒストリーは [設定、質問1、回答1]の状態になっている
+            append_history(message, {"role": "user", "content": anwer})
+
             history_array = get_history_array(message)
             user_identifier = get_user_identifier(message["team"], message["user"])
 
@@ -192,9 +209,11 @@ Create and ask questions related to what you are learning under the following co
                 logit_bias={},
                 user=user_identifier
             )
-            logger.info(response)
+            logger.debug(response)
 
-            append_history_and_size_fix(message, response["choices"][0]["message"])
+            # ヒストリーの状態を[設定、質問2] の状態にして回答2を受け付ける
+            delete_last_two_history(message)
+            append_history(message, response["choices"][0]["message"])
 
             say_ts(client, message, response["choices"][0]["message"]["content"])
             logger.info(f"user: {message['user']}, content: {response['choices'][0]['message']['content']}")
