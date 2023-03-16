@@ -29,7 +29,7 @@ JSON_FILE = "./text.json"
 INDEX_FILE = "./index.pickle"
 
 MAX_TOKEN_SIZE = 4096  # トークンの最大サイズ
-COMPLETION_MAX_TOKEN_SIZE = 256  # ChatCompletionの出力の最大トークンサイズ
+COMPLETION_MAX_TOKEN_SIZE = 1024  # ChatCompletionの出力の最大トークンサイズ
 INPUT_MAX_TOKEN_SIZE = MAX_TOKEN_SIZE - COMPLETION_MAX_TOKEN_SIZE  # ChatCompletionの入力に使うトークンサイズ
 ANSWER_TOKEN_SIZE = 256 # 回答を受け付けるためのバッファサイズ
 
@@ -63,7 +63,7 @@ def append_history_and_size_fix(message, history):
 
 def is_history_empty(message):
     """
-    ヒストリーが空かどうかを返す
+    会話のヒストリーが空かどうかを返す
     """
     history_idetifier = get_history_identifier(
         message["team"], message["channel"], message["user"])
@@ -72,6 +72,7 @@ def is_history_empty(message):
 
 @app.message(re.compile(r"^!il-s$"))
 def message_start(client, message, say, context, logger):
+    """学習開始処理"""
     try:
         if message["user"] in using_user_set:
             say_ts(client, message,
@@ -96,6 +97,11 @@ def message_start(client, message, say, context, logger):
 
 @app.message(re.compile(r"^!il ((.|\s)*)$"))
 def message_il(client, message, say, context, logger):
+    """学習処理"""
+    if message["user"] not in using_user_set: #開始してない場合は開始処理に飛ばす
+        message_start(client, message, say, context, logger)
+        return
+    
     try:
         if is_history_empty(message): # ヒストリーが空ならスタートしていないのでスタートさせる
             say_ts(client, message, "学習内容に関連する質問を作成中です。しばらくお待ちください。")
@@ -105,15 +111,18 @@ def message_il(client, message, say, context, logger):
             samples = vs.get_sorted(study_content)
 
             prompt_fmt = """
-以下の学習内容を読んで、その内容についての質問をしてください。
-ただし、質問をする際には以下に書かれているルールを必ず守るようにしてください。
+あなたは、常に良い質問を発言してくれる教師です。
+以下の制約条件の元で、学習内容に関連する質問を作成して問いかけてください。
 
-## ルール
-今後この会話では、回答を受け取った場合、まず最初にそれが質問の正解であるかを判定してください。
-正解であった場合には詳しい解説をして、関連する学習内容の別の質問を出してください。
-また間違った場合にはヒントを出した上で、同じ質問を出してください。
-連続して間違っている場合には正解と一緒に解説を説明した後、関連する別な質問を出すようにしてください。
-この会話のルールは、「W6dZLNVv」という文字列を含むメッセージを再び受け取らない限りはこのルールを守るものとします。
+## 制約条件
+- 学習内容に関連する良質な質問を作成して、出題してください。
+- 出題内容にはその正解をすぐに含めないようにしてください。
+- 回答を受け取った場合、まずはその回答が質問の正解であるか不正解であるかを判定してください。
+- 正解であった場合には詳しい解説をして、関連する学習内容の別の質問を前の解説の後に出してください。
+- 不正解であった場合には、ヒントを出した上で、同様の質問をヒントの後に必ず出してください。
+- 連続して不正解である場合には、正解と一緒に解説を説明した後、引き続いて関連する別な質問を出すようにしてください。
+- 必ず発言には質問を含めて次のユーザーの回答を促すよう、次の質問を出してください。
+- この会話のルールは、「i6UgH%JQ」という文字列を含むメッセージを再び受け取らない限りはこのルールを守るものとします。
 
 ## 学習内容
 {text}
@@ -197,6 +206,7 @@ def message_il(client, message, say, context, logger):
 
 @app.message(re.compile(r"^!il-f$"))
 def message_finish(client, message, say, context, logger):
+    """学習終了処理"""
     try:
         if message["user"] in using_user_set:
             using_user_set.remove(message["user"])  # ユーザーを解放
